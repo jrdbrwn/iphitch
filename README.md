@@ -7,7 +7,7 @@ install
 =======
 
 Clone to desired location and configure the script.
-You'll need mailx and msmtp configured with an external(gmail) account.
+You'll need mailx and msmtp configured to work with a gmail account or similar setup.
 
 Set a cron job to run the script every 5 min:
 
