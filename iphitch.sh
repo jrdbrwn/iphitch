@@ -68,7 +68,11 @@ echo -e "$( date +%Y-%m-%d\(%H:%M:%S\) ) Curled IP: $CURLEDIP Curl Error:$ERROR 
 		echo "Updated SITE_COUNT is $SITE_COUNT"
 		echo "*************"
 		SITE_POSITION=$SITE_COUNT
-	else 
+
+	elif [[ $ERROR -eq 7 ]]; then
+
+		echo -e "$( date +%Y-%m-%d\(%H:%M:%S\) ) Couldn't resolve host. The given remote host was not resolved." >> $LOG_FILE
+	else
 		#If the curled IP is different
 		if [[ "$CURLEDIP" != "$STOREDIP" ]]; then
 
