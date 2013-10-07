@@ -1,0 +1,124 @@
+#!/bin/bash
+
+#List of emails to receive the info
+EMAILS=( 'b.jared@gmail.com' )
+
+#List of sites that return visitors IP address with HTTP
+#GET_IP_SITES=( 'icanhazip.com' 'echoip.com' 'myip.dnsdynamic.com' 'ifconfig.me' );
+GET_IP_SITES=( 'myip.dnsdynamic.com' 'ifconfig.me' 'icanhazip.com' 'echoip.com' );
+
+
+#This is where we'll store the IP address
+IP_FILE=~/.currentip
+
+#Log file
+LOG_FILE=~/.iphitch.log
+
+#If true the GET_IP_SITES will be shuffled
+MIXED=1
+
+#Keeps count of where the script is
+EMAIL_COUNT=0
+SITE_POSITION=0
+count=0
+
+if [[ $MIXED -eq 1 ]]; then
+
+	for index in `shuf --input-range=0-$(( ${#GET_IP_SITES[*]} - 1 )) | head -${N}`; do
+	
+		MIXED_URLS[$count]=$( echo ${GET_IP_SITES[$index]} )
+		echo ${MIXED_URLS[$count]}
+		echo $index
+
+		let count=count+1
+
+	    done
+
+	
+fi
+
+#main control loop
+while [  $SITE_POSITION -lt ${#GET_IP_SITES[@]} ]; do
+
+#Gets the output and puts the HTTP status down, discards error message
+# -q disabling curlrc
+# -S shows error messages
+# -s muting curl
+# -f fail silently
+# -w write out display on success
+# I'll get around to making a function of these
+if [[ $MIXED -eq 1 ]]; then
+	echo "Random sites is ON"
+	echo -e "Connecting to:${MIXED_URLS[$SITE_POSITION]} [$SITE_POSITION]..."
+	CONNECTEDSITE=$( echo $MIXED_URLS )
+	echo -e "Connected site:$CONNECTEDSITE"
+	OUTPUT=$( curl -qSfsw '\n%{http_code}' ${MIXED_URLS[$SITE_POSITION]} ) 2>/dev/null
+	#get curl error
+	ERROR=$?
+
+
+elif [[ $MIXED -eq 0 ]]; then
+	echo "Random site is OFF"
+	echo -e "Connecting to:${GET_IP_SITES[$SITE_POSITION]} [$SITE_POSITION]..."
+	CONNECTEDSITE=$( echo $GET_IP_SITES )
+	echo -e "Connected site:$CONNECTEDSITE"
+	OUTPUT=$( curl -qSfsw '\n%{http_code}' ${GET_IP_SITES[$SITE_POSITION]} ) 2>/dev/null
+	#get curl error
+	ERROR=$?
+
+fi
+
+
+
+#Pulls needed variables from OUTPUT 
+CURLEDIP=$( echo "$OUTPUT" | head -n-1 ) 
+STOREDIP=$( cat $IP_FILE )
+echo -e "$( date +%Y-%m-%d\(%H:%M:%S\) ) Curled IP: $CURLEDIP from Site: $CONNECTEDSITE with Curl Error:$ERROR and HTTP Error: $HTTPSTATUS" >> $LOG_FILE
+echo "The returned error is $ERROR"
+
+	#Here we do some error checking on the exit code from curl
+	if [ $ERROR -ne 0 ] ; then
+		#Logs error to file	
+		echo "$( date +%Y-%m-%d\(%H:%M:%S\) ) Curled from  Error:$ERROR - HTTP Error: $HTTPSTATUS" >> $LOG_FILE
+
+		echo "${MIXED_URLS[$SITE_POSITION]}"
+	fi
+
+	#If curl can't resolve a site we try the next one
+	if [[ $ERROR -eq 2 ]]; then
+		echo -e "$( date +%Y-%m-%d\(%H:%M:%S\) ) Early initialization code failed"
+                let SITE_POSITION=$SITE_POSITION+1
+	
+	elif [[ $ERROR -eq 6 ]]; then
+
+		echo -e "$( date +%Y-%m-%d\(%H:%M:%S\) ) Couldn't resolve host. The given remote host was not resolved." >> $LOG_FILE
+		let SITE_POSITION=$SITE_POSITION+1
+
+	elif [[ $ERROR -eq 7 ]]; then
+
+		echo -e "$( date +%Y-%m-%d\(%H:%M:%S\) ) Couldn't resolve host. The given remote host was not resolved." >> $LOG_FILE
+		let SITE_POSITION=$SITE_POSITION+1
+	else
+		#If the curled IP is different
+		if [[ "$CURLEDIP" != "$STOREDIP" ]]; then
+
+			echo -e "$( date +%Y-%m-%d\(%H:%M:%S\) ) $CURLEDIP has replaced $STOREDIP" >> $LOG_FILE
+	
+			#Update the stored IP
+			echo ${CURLEDIP} > $IP_FILE
+
+			#Send off Email			
+		#echo "${GET_IP_SITES[$SITE_POSITION]} returns $CURLEDIP" | mail -s "The IP fo $HOSTNAME has changed" -c "b.jared@gmail.com,thenautilusmachine@gmail.com"
+
+			while [  $EMAIL_COUNT -lt ${#EMAILS[@]} ]; do
+				echo "${CONNECTEDSITE} returns $CURLEDIP" | mail -s "The IP for $HOSTNAME has changed" ${EMAILS[$EMAIL_COUNT]}
+				echo -e "$( date +%Y-%m-%d\(%H:%M:%S\) ) $CURLEDIP has been emailed to ${#EMAILS[@]}" >> $LOG_FILE
+				let EMAIL_COUNT=EMAIL_COUNT+1
+			done	
+		fi
+		#This ends the while loop
+		break
+
+	fi
+
+done
