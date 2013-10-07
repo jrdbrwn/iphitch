@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #List of emails to receive the info
-EMAILS=( 'b.jared@gmail.com' )
+EMAILS=( 'foo@bar.com' )
 
 #List of sites that return visitors IP address with HTTP
 #GET_IP_SITES=( 'icanhazip.com' 'echoip.com' 'myip.dnsdynamic.com' 'ifconfig.me' );
